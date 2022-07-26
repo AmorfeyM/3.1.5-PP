@@ -2,8 +2,6 @@ package restClient;
 
 
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.context.annotation.Bean;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.web.client.RestTemplate;
@@ -15,35 +13,51 @@ import java.util.List;
 
 @SpringBootApplication
 public class App {
-
-
-    private static RestTemplate restTemplate = new RestTemplate();
+    private static final RestTemplate restTemplate = new RestTemplate();
     private static final String URL = "http://94.198.50.185:7081/api/users";
 
     public static void main( String[] args ) {
+        String result = "";
 
-        ResponseEntity<List<User>> responseEntity = restTemplate.exchange(URL, HttpMethod.GET, null,
-                new ParameterizedTypeReference<>() {});
-        HttpHeaders headers = responseEntity.getHeaders();
-        System.out.println(headers.getFirst(HttpHeaders.SET_COOKIE));
+        HttpHeaders headers = getSessionIdHeaders();
+        User user = new User(3L, "James", "Brown", (byte)12);
+        result += postUser(user, headers).getBody();
 
-        String sessionId = headers.getFirst(HttpHeaders.SET_COOKIE);
+        user.setName("Thomas");
+        user.setLastName("Shelby");
+        result += putUser(user,headers).getBody();
 
+        result += deleteUser(headers, 3L).getBody();
 
-        HttpHeaders requestHeaders = new HttpHeaders();
-        requestHeaders.add("Cookie", sessionId);
-        requestHeaders.setAccept(List.of(MediaType.APPLICATION_JSON));
-        System.out.println(requestHeaders);
-
-        User newUser = new User(3L, "James", "Brown", (byte)12);
-
-
-        HttpEntity<User> requestEntity = new HttpEntity<>(newUser, requestHeaders);
-        System.out.println(requestEntity);
-
-        ResponseEntity<String> response = restTemplate.exchange(URL, HttpMethod.POST, requestEntity, String.class);
-        System.out.println(response.getBody());
+        System.out.println(result);
+        System.out.println(result.length());
     }
 
+    public static HttpHeaders getSessionIdHeaders() {
+        ResponseEntity<List> responseEntity = restTemplate.exchange(
+                URL, HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<>() {});
+        String sessionId = responseEntity.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Cookie", sessionId);
+        return headers;
+
+    }
+
+    public static ResponseEntity<String> postUser(User user, HttpHeaders headers) {
+        HttpEntity<User> entity = new HttpEntity<>(user, headers);
+        return restTemplate.exchange(URL, HttpMethod.POST, entity, String.class);
+    }
+
+    public static ResponseEntity<String> putUser(User user, HttpHeaders headers) {
+        HttpEntity<User> entity = new HttpEntity<>(user, headers);
+        return restTemplate.exchange(URL, HttpMethod.PUT, entity, String.class);
+    }
+
+    public static ResponseEntity<String> deleteUser(HttpHeaders headers, Long id) {
+        HttpEntity<User> entity = new HttpEntity<>(headers);
+        return restTemplate.exchange(URL + "/" + id, HttpMethod.DELETE, entity, String.class);
+    }
 
 }
